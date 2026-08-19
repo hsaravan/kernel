@@ -2367,6 +2367,7 @@ static void genpd_lock_init(struct generic_pm_domain *genpd)
 static void genpd_set_stay_on(struct generic_pm_domain *genpd, bool is_off)
 {
 	genpd->stay_on = !genpd_is_no_stay_on(genpd) && !is_off;
+	pr_err("%s: %s stay_on: %d\n", __func__, genpd->name, genpd->stay_on);
 }
 #else
 static void genpd_set_stay_on(struct generic_pm_domain *genpd, bool is_off)

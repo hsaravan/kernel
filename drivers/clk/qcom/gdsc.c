@@ -261,6 +261,8 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
 
+	pr_err("%s: %s enter\n", __func__, sc->pd.name);
+
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
 
@@ -311,6 +313,8 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 		udelay(1);
 	}
 
+	pr_err("%s: %s exit\n", __func__, sc->pd.name);
+
 	return 0;
 }
 
@@ -318,6 +322,8 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
+
+	pr_err("%s: %s enter\n", __func__, sc->pd.name);
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);
@@ -359,6 +365,8 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 
 	if (sc->flags & CLAMP_IO)
 		gdsc_assert_clamp_io(sc);
+
+	pr_err("%s: %s exit\n", __func__, sc->pd.name);
 
 	return 0;
 }
@@ -402,7 +410,7 @@ static bool gdsc_get_hwmode(struct generic_pm_domain *domain, struct device *dev
 
 static int gdsc_init(struct gdsc *sc)
 {
-	u32 mask, val;
+	u32 mask, val, temp;
 	int on, ret;
 
 	/*
@@ -434,6 +442,12 @@ static int gdsc_init(struct gdsc *sc)
 		if (ret)
 			return ret;
 	}
+
+	ret = regmap_read(sc->regmap, sc->gdscr, &temp);
+	if (ret)
+		return ret;
+
+	pr_err("%s: %s gdscr: 0x%x\n", __func__, sc->pd.name, temp);
 
 	on = gdsc_check_status(sc, GDSC_ON);
 	if (on < 0)
