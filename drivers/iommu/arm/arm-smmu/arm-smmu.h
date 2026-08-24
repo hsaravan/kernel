@@ -337,6 +337,7 @@ struct arm_smmu_device {
 	unsigned int			*irqs;
 	struct clk_bulk_data		*clks;
 	struct icc_path			*icc_path;
+	struct device			*cx_pd_dev;
 
 	spinlock_t			global_sync_lock;
 

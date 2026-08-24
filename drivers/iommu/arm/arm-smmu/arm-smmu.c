@@ -31,6 +31,7 @@
 #include <linux/of_address.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
@@ -93,9 +94,11 @@ static inline void arm_smmu_rpm_put(struct arm_smmu_device *smmu)
 
 static int arm_smmu_icc_get(struct arm_smmu_device *smmu)
 {
+	int err;
+
 	smmu->icc_path = devm_of_icc_get(smmu->dev, NULL);
 	if (IS_ERR(smmu->icc_path)) {
-		int err = PTR_ERR(smmu->icc_path);
+		err = PTR_ERR(smmu->icc_path);
 
 		if (err == -ENODATA) {
 			smmu->icc_path = NULL;
@@ -104,11 +107,54 @@ static int arm_smmu_icc_get(struct arm_smmu_device *smmu)
 		return dev_err_probe(smmu->dev, err,
 				     "failed to get interconnect path\n");
 	}
+
+	/*
+	 * Attach the CX power domain explicitly so it can be voted alongside
+	 * the ICC path in runtime_resume, ensuring both are committed before
+	 * any SMMU register access. Optional: -ENODEV means no named "cx" PD.
+	 */
+	smmu->cx_pd_dev = dev_pm_domain_attach_by_name(smmu->dev, "cx");
+	if (IS_ERR(smmu->cx_pd_dev)) {
+		err = PTR_ERR(smmu->cx_pd_dev);
+		if (err != -ENODEV)
+			return dev_err_probe(smmu->dev, err,
+					     "failed to attach CX power domain\n");
+		smmu->cx_pd_dev = NULL;
+	}
+
+	if (smmu->cx_pd_dev) {
+		err = devm_add_action_or_reset(smmu->dev,
+					       (void (*)(void *))dev_pm_domain_detach,
+					       smmu->cx_pd_dev);
+		if (err)
+			return err;
+		dev_err(smmu->dev, "CX genpd attached for explicit PD+ICC voting\n");
+	}
+
 	return 0;
 }
 
 static void arm_smmu_icc_enable(struct arm_smmu_device *smmu)
 {
+<<<<<<< HEAD
+=======
+	if (smmu->cx_pd_dev) {
+		int ret = pm_runtime_get_sync(smmu->cx_pd_dev);
+
+		if (ret < 0) {
+			dev_warn(smmu->dev,
+				 "CX genpd resume failed (%d), SMMU register access may fault\n",
+				 ret);
+			pm_runtime_put_noidle(smmu->cx_pd_dev);
+			WARN_ON(ret);
+			return;
+		}
+
+		dev_err(smmu->dev, "CX genpd active: %s\n",
+			pm_runtime_active(smmu->cx_pd_dev) ? "yes" : "no");
+	}
+
+>>>>>>> iommu/arm-smmu: Explicitly vote for CX power domain on adreno SMMU resume
 	if (smmu->icc_path) {
 		int ret = icc_set_bw(smmu->icc_path, ARM_SMMU_ICC_AVG_BW,
 				     ARM_SMMU_ICC_PEAK_BW_HIGH);
@@ -129,6 +175,14 @@ static void arm_smmu_icc_disable(struct arm_smmu_device *smmu)
 			ret ? "FAILED" : "ok", ret);
 		WARN_ON(ret);
 	}
+<<<<<<< HEAD
+=======
+
+	if (smmu->cx_pd_dev) {
+		dev_err(smmu->dev, "CX genpd releasing\n");
+		pm_runtime_put_sync(smmu->cx_pd_dev);
+	}
+>>>>>>> iommu/arm-smmu: Explicitly vote for CX power domain on adreno SMMU resume
 }
 
 static void arm_smmu_rpm_use_autosuspend(struct arm_smmu_device *smmu)
