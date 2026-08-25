@@ -109,16 +109,26 @@ static int arm_smmu_icc_get(struct arm_smmu_device *smmu)
 
 static void arm_smmu_icc_enable(struct arm_smmu_device *smmu)
 {
-	if (smmu->icc_path)
-		WARN_ON(icc_set_bw(smmu->icc_path, ARM_SMMU_ICC_AVG_BW,
-				   ARM_SMMU_ICC_PEAK_BW_HIGH));
+	if (smmu->icc_path) {
+		int ret = icc_set_bw(smmu->icc_path, ARM_SMMU_ICC_AVG_BW,
+				     ARM_SMMU_ICC_PEAK_BW_HIGH);
+
+		dev_err(smmu->dev, "ICC BW vote (enable): %s (ret=%d)\n",
+			ret ? "FAILED" : "ok", ret);
+		WARN_ON(ret);
+	}
 }
 
 static void arm_smmu_icc_disable(struct arm_smmu_device *smmu)
 {
-	if (smmu->icc_path)
-		WARN_ON(icc_set_bw(smmu->icc_path, ARM_SMMU_ICC_AVG_BW,
-				   ARM_SMMU_ICC_PEAK_BW_LOW));
+	if (smmu->icc_path) {
+		int ret = icc_set_bw(smmu->icc_path, ARM_SMMU_ICC_AVG_BW,
+				     ARM_SMMU_ICC_PEAK_BW_LOW);
+
+		dev_err(smmu->dev, "ICC BW vote (disable): %s (ret=%d)\n",
+			ret ? "FAILED" : "ok", ret);
+		WARN_ON(ret);
+	}
 }
 
 static void arm_smmu_rpm_use_autosuspend(struct arm_smmu_device *smmu)
